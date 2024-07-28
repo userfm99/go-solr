@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var userAgent = fmt.Sprintf("Go-solr/%s (+https://github.com/vanng822/go-solr)", VERSION)
+var userAgent = fmt.Sprintf("Go-solr/%s (+https://github.com/userfm99/go-solr)", VERSION)
 
 var transport = http.Transport{}
 

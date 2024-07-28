@@ -4,7 +4,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	jsoniter "github.com/json-iterator/go"
 )
+
+func bytes2jsonWithJsonIter(data *[]byte) (map[string]interface{}, error) {
+	var jsont = jsoniter.ConfigCompatibleWithStandardLibrary
+	var jsonData interface{}
+
+	err := jsont.Unmarshal(*data, &jsonData)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return jsonData.(map[string]interface{}), nil
+}
 
 func bytes2json(data *[]byte) (map[string]interface{}, error) {
 	var jsonData interface{}
@@ -123,6 +138,41 @@ func (parser *StandardResultParser) Parse(resp_ *[]byte) (*SolrResult, error) {
 
 	sr := &SolrResult{}
 	jsonbuf, err := bytes2json(resp_)
+	if err != nil {
+		return sr, err
+	}
+	response := new(SolrResponse)
+	response.Response = jsonbuf
+	response.Status = int(jsonbuf["responseHeader"].(map[string]interface{})["status"].(float64))
+
+	sr.Results = new(Collection)
+	sr.Status = response.Status
+	if jsonbuf["nextCursorMark"] != nil {
+		sr.NextCursorMark = fmt.Sprintf("%s", jsonbuf["nextCursorMark"])
+	}
+
+	parser.ParseResponseHeader(response, sr)
+
+	if response.Status == 0 {
+		err := parser.ParseResponse(response, sr)
+		if err != nil {
+			return nil, err
+		}
+		parser.ParseFacetCounts(response, sr)
+		parser.ParseHighlighting(response, sr)
+		parser.ParseStats(response, sr)
+		parser.ParseMoreLikeThis(response, sr)
+		parser.ParseSpellCheck(response, sr)
+	} else {
+		parser.ParseError(response, sr)
+	}
+
+	return sr, nil
+}
+
+func (parser *StandardResultParser) ParseWithJsoniter(resp_ *[]byte) (*SolrResult, error) {
+	sr := &SolrResult{}
+	jsonbuf, err := bytes2jsonWithJsonIter(resp_)
 	if err != nil {
 		return sr, err
 	}
